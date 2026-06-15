@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ==================== SEO Meta ==================== -->
+<title>AI Photo Realizer — Remove AI Metadata & Make AI Images Look Real | Free Tool</title>
+<meta name="description" content="Strip AI-generated metadata from images & inject real phone EXIF data (iPhone, Samsung, etc.). Add realistic noise & vignette effects. Bypass AI detection on social media. Free, no upload — all processed locally in your browser.">
+<meta name="keywords" content="remove AI metadata, strip AI image metadata, AI photo realizer, make AI images look real, bypass AI image detection, fake EXIF, phone EXIF injector, AI image to real photo, remove AI watermark, AI photo metadata remover">
+<meta name="author" content="AI Photo Realizer">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://aiphotorealizer.com/">
+
+<!-- Open Graph -->
+<meta property="og:title" content="AI Photo Realizer — Make AI Images Look Like Real Photos">
+<meta property="og:description" content="One-click tool to strip AI metadata, inject real phone EXIF, and add realistic noise. Make AI-generated images undetectable.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://aiphotorealizer.com/">
+<meta property="og:image" content="https://aiphotorealizer.com/og-image.png">
+<meta property="og:site_name" content="AI Photo Realizer">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI Photo Realizer — Make AI Images Look Real">
+<meta name="twitter:description" content="Strip AI metadata, inject real phone EXIF, add camera noise. All processed in your browser — 100% private & free.">
+<meta name="twitter:image" content="https://aiphotorealizer.com/og-image.png">
+
+<!-- Schema.org Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "AI Photo Realizer",
+  "description": "Free online tool to remove AI-generated metadata from images and inject real phone EXIF data to make AI photos look authentic.",
+  "url": "https://aiphotorealizer.com/",
+  "applicationCategory": "Multimedia",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "browserRequirements": "Requires JavaScript"
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Can social media detect AI-generated images?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Platforms like Instagram, Xiaohongshu, and TikTok increasingly scan image metadata for AI generation markers (e.g., 'DALL·E', 'Midjourney', 'Stable Diffusion' in EXIF fields). They may also use visual analysis to flag AI content. AI Photo Realizer strips all metadata and adds realistic phone camera EXIF to help your images pass detection."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is my image uploaded to a server?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. All processing happens entirely in your browser using JavaScript Canvas API. Your images never leave your device. This ensures complete privacy and faster processing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What phone models can I fake the EXIF for?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "We support iPhone 15 Pro Max, iPhone 16 Pro, iPhone 14 Pro, Samsung Galaxy S24 Ultra, Xiaomi 14 Ultra, OPPO Find X7 Ultra, vivo X100 Pro, HUAWEI Pura 70 Ultra, and custom entries."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does this tool work for batch processing?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes! You can upload multiple images at once, process them all with one click, and download them individually or as a ZIP file."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will the image quality decrease?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The tool uses high-quality JPEG compression (configurable up to 100%). The added noise and vignette effects are subtle and adjustable. For most social media use cases, quality loss is negligible."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- Fonts & Icons -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a28;
+  --border: #252540;
+  --text: #e4e4ec;
+  --text2: #8888a0;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00d68f;
+  --red: #ff6b6b;
+  --yellow: #ffd93d;
+  --cyan: #45aaf2;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg); color: var(--text);
+  line-height: 1.6; min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==================== Nav ==================== */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.85); backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { font-weight: 800; font-size: 20px; letter-spacing: -0.5px; background: linear-gradient(135deg, var(--accent2), var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.nav-cta { padding: 8px 18px; background: var(--accent); color: #fff; border: none; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; }
+.nav-cta:hover { background: #7c6ff7; }
+
+/* ==================== Hero ==================== */
+.hero {
+  text-align: center; padding: 80px 20px 60px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(108,92,231,0.15) 0%, transparent 60%);
+}
+.hero h1 {
+  font-size: clamp(32px, 6vw, 56px); font-weight: 900;
+  line-height: 1.15; letter-spacing: -1.5px;
+  max-width: 800px; margin: 0 auto 16px;
+}
+.hero h1 .grad { background: linear-gradient(135deg, var(--accent2), var(--cyan), var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.hero p {
+  font-size: 18px; color: var(--text2); max-width: 600px;
+  margin: 0 auto 32px; line-height: 1.7;
+}
+.hero-badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+.badge {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+  display: flex; align-items: center; gap: 6px;
+}
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot.green { background: var(--green); }
+.dot.cyan { background: var(--cyan); }
+.dot.purple { background: var(--accent2); }
+
+/* ==================== Container ==================== */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+/* ==================== Tool Section ==================== */
+.tool-section { padding: 0 0 60px; }
+.tool-wrapper {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+/* Upload */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 44px 24px; text-align: center; cursor: pointer;
+  transition: all 0.3s; margin: 20px;
+  background: var(--surface2);
+}
+.upload-area:hover, .upload-area.dragover { border-color: var(--accent2); background: rgba(108,92,231,0.05); }
+.upload-area .u-icon { font-size: 40px; margin-bottom: 10px; }
+.upload-area .u-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.upload-area .u-sub { font-size: 13px; color: var(--text2); }
+#fileInput { display: none; }
+
+/* Queue */
+.queue { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 20px 16px; min-height: 50px; }
+.q-item {
+  position: relative; width: 100px; height: 100px; border-radius: var(--radius-sm);
+  overflow: hidden; border: 2px solid var(--border); cursor: pointer; transition: border 0.2s;
+}
+.q-item:hover, .q-item.sel { border-color: var(--accent2); }
+.q-item img { width: 100%; height: 100%; object-fit: cover; }
+.q-item .q-badge {
+  position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 2px 7px;
+  border-radius: 10px; font-weight: 600; backdrop-filter: blur(6px);
+}
+.q-badge.raw { background: rgba(255,107,107,0.3); color: var(--red); }
+.q-badge.done { background: rgba(0,214,143,0.3); color: var(--green); }
+.q-item .q-rm {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: rgba(0,0,0,0.7); color: var(--red); border: none;
+  cursor: pointer; font-size: 10px; display: none; align-items: center; justify-content: center;
+}
+.q-item:hover .q-rm { display: flex; }
+
+/* Main Grid */
+.tool-grid {
+  display: grid; grid-template-columns: 1fr 340px; gap: 20px; padding: 0 20px 20px;
+}
+@media (max-width: 900px) { .tool-grid { grid-template-columns: 1fr; } }
+
+/* Preview */
+.preview-wrap { display: none; }
+.preview-wrap.active { display: block; }
+.p-tabs { display: flex; gap: 2px; }
+.p-tabs button {
+  padding: 8px 18px; border: 1px solid var(--border); border-bottom: none;
+  background: var(--surface); color: var(--text2); cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0; font-size: 12px; font-weight: 600;
+}
+.p-tabs button.active { background: var(--surface2); color: var(--text); }
+.p-box {
+  background: var(--surface2); border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
+  padding: 16px; text-align: center; min-height: 260px;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-box.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.p-box img { max-width: 100%; max-height: 400px; border-radius: 6px; }
+
+/* Settings Cards */
+.s-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 16px; margin-bottom: 12px;
+}
+.s-card h3 { font-size: 13px; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+.s-row { margin-bottom: 12px; }
+.s-row:last-child { margin-bottom: 0; }
+.s-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.s-row select, .s-row input[type="text"] {
+  width: 100%; padding: 9px 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 13px; outline: none; transition: border 0.2s;
+}
+.s-row select:focus, .s-row input:focus { border-color: var(--accent2); }
+.range-r { display: flex; align-items: center; gap: 8px; }
+.range-r input[type="range"] { flex: 1; accent-color: var(--accent2); }
+.range-r span { font-size: 12px; color: var(--text2); min-width: 28px; text-align: right; }
+.toggle-r { display: flex; align-items: center; justify-content: space-between; }
+.tgl { position: relative; width: 44px; height: 24px; }
+.tgl input { opacity:0; width:0; height:0; }
+.tgl .sl { position: absolute; cursor: pointer; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:24px; transition:0.3s; }
+.tgl input:checked + .sl { background:var(--accent); }
+.tgl .sl::before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.3s; }
+.tgl input:checked + .sl::before { transform:translateX(20px); }
+
+/* Buttons */
+.btn {
+  padding: 10px 18px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; font-family: inherit; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-p { background: var(--accent); color: #fff; width: 100%; justify-content: center; font-size: 14px; }
+.btn-p:hover { background: #7c6ff7; }
+.btn-p:disabled { background: var(--border); color: var(--text2); cursor: not-allowed; }
+.btn-s { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-s:hover { background: var(--border); }
+.btn-g { background: var(--green); color: #000; }
+.btn-g:hover { background: #00e6a0; }
+.btn-group { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Stats */
+.stats-r { display: flex; gap: 16px; padding: 0 20px 8px; font-size: 11px; color: var(--text2); display: none; }
+.stats-r.active { display: flex; }
+.stats-r span strong { color: var(--text); }
+
+/* ==================== How It Works ==================== */
+.how { padding: 80px 0; }
+.how h2, .faq-section h2 { text-align: center; font-size: 32px; font-weight: 800; margin-bottom: 48px; letter-spacing: -0.5px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+@media (max-width: 768px) { .steps { grid-template-columns: 1fr; } }
+.step {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 32px 24px; text-align: center; transition: border-color 0.3s;
+}
+.step:hover { border-color: var(--accent2); }
+.step-num { width: 40px; height: 40px; background: var(--accent); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; margin: 0 auto 16px; }
+.step h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.step p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+/* ==================== FAQ ==================== */
+.faq-section { padding: 60px 0 80px; }
+.faq-list { max-width: 760px; margin: 0 auto; }
+.faq-item {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 12px; overflow: hidden;
+}
+.faq-q {
+  padding: 18px 20px; font-weight: 600; font-size: 15px;
+  cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  user-select: none; transition: background 0.2s;
+}
+.faq-q:hover { background: var(--surface2); }
+.faq-q::after { content: '+'; font-size: 20px; color: var(--accent2); transition: transform 0.3s; }
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+.faq-a { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s; font-size: 14px; color: var(--text2); line-height: 1.7; }
+.faq-item.open .faq-a { max-height: 300px; padding: 0 20px 18px; }
+
+/* ==================== Footer ==================== */
+.footer {
+  border-top: 1px solid var(--border); padding: 32px 20px;
+  text-align: center; color: var(--text2); font-size: 13px;
+}
+.footer a { color: var(--accent2); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ==================== Toast ==================== */
+.toast {
+  position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 10px;
+  font-weight: 600; font-size: 13px; z-index: 1000; animation: toastIn 0.3s ease;
+  display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.toast.ok { background: var(--green); color: #000; }
+.toast.err { background: var(--red); color: #fff; }
+@keyframes toastIn { from { opacity:0; transform:translateX(80px); } to { opacity:1; transform:translateX(0); } }
+</style>
+</head>
+<body>
+
+<!-- ==================== NAV ==================== -->
+<nav class="nav">
+  <span class="nav-logo">AI Photo Realizer</span>
+  <a href="#tool" class="nav-cta">Try It Free ↓</a>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero">
+  <h1>Make <span class="grad">AI-Generated Images</span><br>Look Like Real Photos</h1>
+  <p>
+    One-click tool to strip AI metadata, inject real phone EXIF (iPhone, Samsung, etc.),
+    and add realistic camera noise. Bypass AI detection on TikTok, Instagram & Xiaohongshu.
+  </p>
+  <div class="hero-badges">
+    <span class="badge"><span class="dot green"></span> 100% Browser-Based</span>
+    <span class="badge"><span class="dot cyan"></span> No Upload to Server</span>
+    <span class="badge"><span class="dot purple"></span> Batch Processing</span>
+    <span class="badge"><span class="dot green"></span> Completely Free</span>
+  </div>
+</section>
+
+<!-- ==================== TOOL ==================== -->
+<section class="tool-section" id="tool">
+  <div class="container">
+    <div class="tool-wrapper">
+      <!-- Upload -->
+      <div class="upload-area" id="uploadZone">
+        <div class="u-icon">📁</div>
+        <div class="u-title">Click to Upload or Drag &amp; Drop Images</div>
+        <div class="u-sub">Supports JPG, PNG, WEBP — Batch Upload Supported</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+
+      <!-- Stats -->
+      <div class="stats-r" id="statsRow">
+        <span>📊 Loaded: <strong id="total">0</strong></span>
+        <span>✅ Processed: <strong id="done">0</strong></span>
+        <span>⏳ Pending: <strong id="pending">0</strong></span>
+      </div>
+
+      <!-- Queue -->
+      <div class="queue" id="queue"></div>
+
+      <!-- Grid -->
+      <div class="tool-grid">
+        <!-- Preview -->
+        <div>
+          <div class="preview-wrap" id="previewWrap">
+            <div class="p-tabs">
+              <button class="active" data-tab="before">Before</button>
+              <button data-tab="after">After</button>
+              <button data-tab="compare">Compare</button>
+            </div>
+            <div class="p-box" id="previewBox">
+              <p style="color:var(--text2)">Select an image to preview</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div>
+          <div class="s-card">
+            <h3>📱 Phone Model (EXIF Injection)</h3>
+            <div class="s-row">
+              <label>Preset Model</label>
+              <select id="phonePreset">
+                <option value="iphone15pro">iPhone 15 Pro Max</option>
+                <option value="iphone16pro">iPhone 16 Pro</option>
+                <option value="iphone14pro">iPhone 14 Pro</option>
+                <option value="samsung_s24u">Samsung Galaxy S24 Ultra</option>
+                <option value="xiaomi14u">Xiaomi 14 Ultra</option>
+                <option value="oppo_findx7">OPPO Find X7 Ultra</option>
+                <option value="vivo_x100p">vivo X100 Pro</option>
+                <option value="huawei_pura70">HUAWEI Pura 70 Ultra</option>
+                <option value="custom">Custom...</option>
+              </select>
+            </div>
+            <div class="s-row" id="cmakeRow" style="display:none">
+              <label>Make</label>
+              <input type="text" id="customMake" placeholder="e.g. Apple">
+            </div>
+            <div class="s-row" id="cmodelRow" style="display:none">
+              <label>Model</label>
+              <input type="text" id="customModel" placeholder="e.g. iPhone 15 Pro Max">
+            </div>
+            <div class="s-row">
+              <label>Date Taken</label>
+              <select id="dateMode">
+                <option value="now">Current Time</option>
+                <option value="random">Random (past 7 days)</option>
+                <option value="keep">Keep Original</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <h3>🎨 Real Photo Effects</h3>
+            <div class="s-row">
+              <label>Noise (camera sensor simulation)</label>
+              <div class="range-r">
+                <input type="range" id="noiseLv" min="0" max="10" value="3" step="0.5">
+                <span id="noiseVal">3.0</span>
+              </div>
+            </div>
+            <div class="s-row">
+              <label>Vignette (lens shadow)</label>
+              <div class="range-r">
+                <input type="range" id="vignLv" min="0" max="10" value="2" step="0.5">
+                <span id="vignVal">2.0</span>
+              </div>
+            </div>
+            <div class="s-row">
+              <label>Color Profile</label>
+              <select id="colorProfile">
+                <option value="none">No Adjustment</option>
+                <option value="warm">Warm Tone (+5%)</option>
+                <option value="cool">Cool Tone (+5%)</option>
+                <option value="samsung">Samsung Style (vivid)</option>
+                <option value="iphone">iPhone Style (natural)</option>
+              </select>
+            </div>
+            <div class="s-row">
+              <label>JPEG Quality</label>
+              <div class="range-r">
+                <input type="range" id="quality" min="60" max="100" value="92" step="1">
+                <span id="qualityVal">92</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <h3>🔧 Options</h3>
+            <div class="s-row">
+              <div class="toggle-r">
+                <span style="font-size:12px">Strip All Metadata</span>
+                <label class="tgl"><input type="checkbox" id="stripMeta" checked><span class="sl"></span></label>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="toggle-r">
+                <span style="font-size:12px">Add Random GPS Coordinates</span>
+                <label class="tgl"><input type="checkbox" id="addGPS"><span class="sl"></span></label>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="toggle-r">
+                <span style="font-size:12px">Auto Resize (max 2048px)</span>
+                <label class="tgl"><input type="checkbox" id="autoResize"><span class="sl"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-p" id="processAllBtn" disabled>⚡ Process All Images</button>
+          <div class="btn-group">
+            <button class="btn btn-s" id="processOneBtn" disabled style="flex:1">Process Selected</button>
+            <button class="btn btn-g" id="downloadBtn" disabled style="flex:1">📥 Download All</button>
+          </div>
+          <button class="btn btn-s" id="clearBtn" style="width:100%;margin-top:6px;">🗑 Clear All</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== HOW IT WORKS ==================== -->
+<section class="how">
+  <div class="container">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Upload AI Images</h3>
+        <p>Drag & drop or click to upload your AI-generated images. All processing happens locally — nothing is uploaded to a server.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Choose Settings</h3>
+        <p>Select a real phone model for EXIF injection, adjust noise & vignette levels, and pick a color profile that matches real camera output.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Download Realistic Photos</h3>
+        <p>Your images now carry real phone EXIF data and natural camera characteristics — ready to post without AI detection flags.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section class="faq-section">
+  <div class="container">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">Can social media platforms detect AI-generated images?</div>
+        <div class="faq-a">Yes. Platforms like Instagram, TikTok, and Xiaohongshu increasingly scan image metadata for AI markers (DALL·E, Midjourney, Stable Diffusion, etc.). They may also use visual analysis. Our tool strips these markers and replaces them with real phone EXIF data to help your images pass detection.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Is my image uploaded to any server?</div>
+        <div class="faq-a">No — absolutely not. All processing runs entirely in your browser using the Canvas API and JavaScript. Your images never leave your device. This ensures complete privacy and faster results.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What phone EXIF data can I inject?</div>
+        <div class="faq-a">We support presets for iPhone 15 Pro Max, iPhone 16 Pro, iPhone 14 Pro, Samsung Galaxy S24 Ultra, Xiaomi 14 Ultra, OPPO Find X7 Ultra, vivo X100 Pro, and HUAWEI Pura 70 Ultra. You can also enter custom Make/Model values. Each preset includes realistic camera software version and timestamp data.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I process multiple images at once?</div>
+        <div class="faq-a">Yes! Batch upload is fully supported. Process all images with one click, then download them individually or as a ZIP file. The tool handles each image sequentially to ensure consistent quality.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Will my image quality degrade?</div>
+        <div class="faq-a">Quality loss is minimal. The tool uses high-quality JPEG compression (configurable up to 100%). The noise and vignette effects are subtle — typically 2-3 on our scale — adding just enough imperfection to mimic a real camera sensor. For social media use, the difference is virtually unnoticeable.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What's the difference between "noise" and "vignette"?</div>
+        <div class="faq-a">Noise simulates the grain produced by real camera sensors (especially in lower light), while vignette simulates the slight darkening at image corners caused by lens optics. Both are natural artifacts of real photography that AI images typically lack — adding them makes images less detectable.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="footer">
+  <p>AI Photo Realizer — Free online tool to make AI-generated images look authentic.</p>
+  <p style="margin-top:4px;">All processing is done locally. Your privacy is guaranteed.</p>
+</footer>
+
+<div class="toast" id="toastEl"></div>
+
+<script defer>
+// ==================== State ====================
+const S = { imgs:[], sel:null };
+const $ = id => document.getElementById(id);
+
+// ==================== Phone Presets ====================
+const PRESETS = {
+  iphone15pro:  { Make:'Apple', Model:'iPhone 15 Pro Max', Software:'iOS 17.4' },
+  iphone16pro:  { Make:'Apple', Model:'iPhone 16 Pro', Software:'iOS 18.2' },
+  iphone14pro:  { Make:'Apple', Model:'iPhone 14 Pro', Software:'iOS 16.6' },
+  samsung_s24u: { Make:'Samsung', Model:'Galaxy S24 Ultra', Software:'SM-S9280' },
+  xiaomi14u:    { Make:'Xiaomi', Model:'24030PN60G', Software:'HyperOS 1.0' },
+  oppo_findx7:  { Make:'OPPO', Model:'PHY120', Software:'ColorOS 14' },
+  vivo_x100p:   { Make:'vivo', Model:'V2324A', Software:'OriginOS 4' },
+  huawei_pura70:{ Make:'HUAWEI', Model:'HBN-AL00', Software:'HarmonyOS 4.2' },
+};
+
+// ==================== Toast ====================
+let toastT;
+function toast(msg, err) {
+  const el = $('toastEl');
+  el.textContent = msg; el.className = 'toast ' + (err?'err':'ok'); el.style.display='block';
+  clearTimeout(toastT); toastT = setTimeout(()=>el.style.display='none',2500);
+}
+
+// ==================== Upload ====================
+const uz = $('uploadZone'), fi = $('fileInput');
+uz.addEventListener('click',()=>fi.click());
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('dragover')});
+uz.addEventListener('dragleave',()=>uz.classList.remove('dragover'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('dragover');addFiles(e.dataTransfer.files)});
+fi.addEventListener('change',()=>addFiles(fi.files));
+
+function addFiles(files) {
+  for(const f of files) {
+    if(!f.type.startsWith('image/')) continue;
+    const id = Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    S.imgs.push({id, file:f, rawUrl:URL.createObjectURL(f), blob:null, status:'raw'});
+  }
+  if(S.imgs.length && !S.sel) S.sel = S.imgs[0].id;
+  render();
+}
+
+// ==================== Render ====================
+function render() {
+  renderQ(); renderStats(); renderPreview(); updateBtns();
+}
+function renderQ() {
+  $('queue').innerHTML = S.imgs.map(i=>{
+    const cls = i.status==='done'?'done':'raw';
+    const txt = i.status==='done'?'Done':'Raw';
+    return `<div class="q-item${i.id===S.sel?' sel':''}" data-id="${i.id}" onclick="selImg('${i.id}')">
+      <button class="q-rm" onclick="event.stopPropagation();rmImg('${i.id}')">✕</button>
+      <img src="${i.rawUrl}"><span class="q-badge ${cls}">${txt}</span></div>`;
+  }).join('');
+}
+function renderStats() {
+  const t=S.imgs.length, d=S.imgs.filter(i=>i.status==='done').length;
+  const sr=$('statsRow');
+  if(!t){sr.classList.remove('active');return}
+  sr.classList.add('active');
+  $('total').textContent=t;$('done').textContent=d;$('pending').textContent=t-d;
+}
+function selImg(id){S.sel=id;render()}
+function rmImg(id){
+  const i=S.imgs.find(x=>x.id===id);if(i)URL.revokeObjectURL(i.rawUrl);
+  S.imgs=S.imgs.filter(x=>x.id!==id);if(S.sel===id)S.sel=S.imgs[0]?.id||null;render();
+}
+
+function renderPreview(){
+  const i=S.imgs.find(x=>x.id===S.sel);
+  const pw=$('previewWrap'), pb=$('previewBox');
+  if(!i){pw.classList.remove('active');pb.innerHTML='<p style="color:var(--text2)">Select an image to preview</p>';return}
+  pw.classList.add('active');
+  const tab=document.querySelector('.p-tabs button.active')?.dataset?.tab||'before';
+  if(tab==='before'){pb.className='p-box';pb.innerHTML=`<img src="${i.rawUrl}" alt="Original">`}
+  else if(tab==='after'){
+    pb.className='p-box';
+    pb.innerHTML=i.blob?`<img src="${URL.createObjectURL(i.blob)}" alt="Processed" onload="this.onload=null;setTimeout(()=>URL.revokeObjectURL(this.src),3000)">`:'<p style="color:var(--text2)">Not processed yet</p>';
+  }else{
+    pb.className='p-box compare';
+    pb.innerHTML=`<img src="${i.rawUrl}" alt="Original">${i.blob?`<img src="${URL.createObjectURL(i.blob)}" alt="Processed" onload="this.onload=null;setTimeout(()=>URL.revokeObjectURL(this.src),3000)">`:'<div style="display:flex;align-items:center;justify-content:center;color:var(--text2)">Not processed</div>'}`;
+  }
+}
+document.querySelector('.p-tabs')?.addEventListener('click',e=>{
+  if(e.target.tagName==='BUTTON'){document.querySelectorAll('.p-tabs button').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderPreview()}
+});
+
+function updateBtns(){
+  const hasR=S.imgs.some(i=>i.status==='raw'), hasD=S.imgs.some(i=>i.status==='done');
+  const sel=S.imgs.find(x=>x.id===S.sel);
+  $('processAllBtn').disabled=!hasR;$('processAllBtn').textContent=hasR?'⚡ Process All Images':'✅ All Processed';
+  $('processOneBtn').disabled=!sel||sel.status!=='raw';
+  $('downloadBtn').disabled=!hasD;
+}
+
+// ==================== Settings ====================
+$('phonePreset').addEventListener('change',function(){
+  const c=this.value==='custom';
+  $('cmakeRow').style.display=c?'block':'none';
+  $('cmodelRow').style.display=c?'block':'none';
+});
+$('noiseLv').addEventListener('input',function(){$('noiseVal').textContent=parseFloat(this.value).toFixed(1)});
+$('vignLv').addEventListener('input',function(){$('vignVal').textContent=parseFloat(this.value).toFixed(1)});
+$('quality').addEventListener('input',function(){$('qualityVal').textContent=this.value});
+
+// ==================== EXIF ====================
+function getEXIF() {
+  const p=$('phonePreset').value;let mk,md,sw;
+  if(p==='custom'){mk=$('customMake').value||'Apple';md=$('customModel').value||'iPhone';sw=''}
+  else if(PRESETS[p]){const x=PRESETS[p];mk=x.Make;md=x.Model;sw=x.Software}
+  else{mk='Apple';md='iPhone';sw=''}
+
+  const dm=$('dateMode').value;let ds=null;
+  if(dm==='now')ds=fmtDate(new Date());
+  else if(dm==='random'){const d=new Date(Date.now()-Math.floor(Math.random()*7)*864e5-Math.floor(Math.random()*24)*36e5);ds=fmtDate(d)}
+
+  let gps=null;
+  if($('addGPS').checked){gps={lat:22+Math.random()*18,lng:104+Math.random()*18}}
+  return{mk,md,sw,ds,gps};
+}
+function fmtDate(d){const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}:${p(d.getMonth()+1)}:${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
+function gpsR(deg){const d=Math.floor(Math.abs(deg)),m=Math.floor((Math.abs(deg)-d)*60),s=Math.round(((Math.abs(deg)-d)*60-m)*60*100);return[[d,1],[m,1],[s,100]]}
+
+// ==================== Process ====================
+async function process(imgObj) {
+  imgObj.status='processing';render();
+  const st={noise:parseFloat($('noiseLv').value),vignette:parseFloat($('vignLv').value),cp:$('colorProfile').value,quality:parseInt($('quality').value)/100,ar:$('autoResize').checked};
+  const exif=getEXIF();
+  try{
+    const bmp=await createImageBitmap(imgObj.file);let w=bmp.width,h=bmp.height;
+    if(st.ar&&Math.max(w,h)>2048){const r=2048/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r)}
+    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');cx.drawImage(bmp,0,0,w,h);
+    const id=cx.getImageData(0,0,w,h);
+    if(st.noise>0)noiseFx(id,st.noise);
+    if(st.vignette>0)vignFx(id,st.vignette);
+    if(st.cp!=='none')colorFx(id,st.cp);
+    cx.putImageData(id,0,0);
+    let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',st.quality));
+    if(typeof piexif!=='undefined'){try{blob=await injEXIF(blob,exif,w,h)}catch(e){console.warn('EXIF injection failed:',e)}}
+    imgObj.blob=blob;imgObj.status='done';
+  }catch(e){console.error(e);imgObj.status='raw';toast('Processing failed: '+e.message,true)}
+  render();
+}
+
+async function injEXIF(blob,exif,w,h){
+  const ab=await blob.arrayBuffer();const js=ab2bs(ab);
+  const z={},ef={},gp={};
+  if(exif.mk)z[piexif.ImageIFD.Make]=exif.mk;
+  if(exif.md)z[piexif.ImageIFD.Model]=exif.md;
+  if(exif.sw)z[piexif.ImageIFD.Software]=exif.sw;
+  if(exif.ds){ef[piexif.ExifIFD.DateTimeOriginal]=exif.ds;ef[piexif.ExifIFD.DateTimeDigitized]=exif.ds}
+  z[piexif.ImageIFD.XResolution]=[72,1];z[piexif.ImageIFD.YResolution]=[72,1];z[piexif.ImageIFD.ResolutionUnit]=2;
+  ef[piexif.ExifIFD.PixelXDimension]=w;ef[piexif.ExifIFD.PixelYDimension]=h;ef[piexif.ExifIFD.ColorSpace]=1;
+  if(exif.gps){gp[piexif.GPSIFD.GPSLatitudeRef]=exif.gps.lat>=0?'N':'S';gp[piexif.GPSIFD.GPSLatitude]=gpsR(exif.gps.lat);gp[piexif.GPSIFD.GPSLongitudeRef]=exif.gps.lng>=0?'E':'W';gp[piexif.GPSIFD.GPSLongitude]=gpsR(exif.gps.lng);gp[piexif.GPSIFD.GPSAltitudeRef]=0;gp[piexif.GPSIFD.GPSAltitude]=[Math.floor(Math.random()*200*100),100]}
+  const eb=piexif.dump({'0th':z,Exif:ef,GPS:gp});
+  return new Blob([bs2ab(piexif.insert(eb,js))],{type:'image/jpeg'});
+}
+function ab2bs(buf){let b='';const a=new Uint8Array(buf);for(let i=0;i<a.length;i++)b+=String.fromCharCode(a[i]);return b}
+function bs2ab(b){const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+
+// ==================== Effects ====================
+function noiseFx(d,l){const s=l*3;for(let i=0;i<d.data.length;i+=4){const n=(Math.random()-0.5)*s;d.data[i]=Math.min(255,Math.max(0,d.data[i]+n));d.data[i+1]=Math.min(255,Math.max(0,d.data[i+1]+n));d.data[i+2]=Math.min(255,Math.max(0,d.data[i+2]+n))}}
+function vignFx(d,l){const w=d.width,h=d.height,cx=w/2,cy=h/2,mr=Math.sqrt(cx*cx+cy*cy),s=l*0.035;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const dx=x-cx,dy=y-cy,dist=Math.sqrt(dx*dx+dy*dy)/mr,f=1-dist*dist*s,idx=(y*w+x)*4;d.data[idx]=Math.round(d.data[idx]*f);d.data[idx+1]=Math.round(d.data[idx+1]*f);d.data[idx+2]=Math.round(d.data[idx+2]*f)}}
+function colorFx(d,p){for(let i=0;i<d.data.length;i+=4){switch(p){case'warm':d.data[i]=Math.min(255,d.data[i]*1.05);d.data[i+2]=Math.max(0,d.data[i+2]*0.97);break;case'cool':d.data[i+2]=Math.min(255,d.data[i+2]*1.05);d.data[i]=Math.max(0,d.data[i]*0.97);break;case'samsung':d.data[i]=Math.min(255,d.data[i]*1.08);d.data[i+1]=Math.min(255,d.data[i+1]*1.06);d.data[i+2]=Math.min(255,d.data[i+2]*1.04);break;case'iphone':d.data[i]=Math.min(255,d.data[i]*1.01);d.data[i+1]=Math.min(255,d.data[i+1]*1.02);d.data[i+2]=Math.min(255,d.data[i+2]*1.03);break}}}
+
+// ==================== Batch / Download ====================
+$('processAllBtn').addEventListener('click',async()=>{
+  const r=S.imgs.filter(i=>i.status==='raw');if(!r.length)return;
+  $('processAllBtn').disabled=true;$('processAllBtn').textContent='⏳ Processing...';
+  for(const i of r){await process(i);await new Promise(r=>setTimeout(r,30))}
+  toast(`✅ ${r.length} image(s) processed`);
+});
+$('processOneBtn').addEventListener('click',async()=>{
+  const i=S.imgs.find(x=>x.id===S.sel);if(!i||i.status!=='raw')return;await process(i);toast('✅ Done');
+});
+$('downloadBtn').addEventListener('click',async()=>{
+  const d=S.imgs.filter(i=>i.status==='done'&&i.blob);if(!d.length)return;
+  if(d.length===1){dlBlob(d[0].blob,outName(d[0].file.name));toast('✅ Downloaded');return}
+  if(typeof JSZip==='undefined'){for(const i of d){dlBlob(i.blob,outName(i.file.name));await new Promise(r=>setTimeout(r,200))}return}
+  const zip=new JSZip();for(const i of d)zip.file(outName(i.file.name),i.blob);
+  dlBlob(await zip.generateAsync({type:'blob'}),'real_photos.zip');toast('✅ Downloaded');
+});
+function dlBlob(b,n){const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function outName(n){const d=n.lastIndexOf('.');return(d>0?n.slice(0,d):n)+'_real.jpg'}
+$('clearBtn').addEventListener('click',()=>{S.imgs.forEach(i=>URL.revokeObjectURL(i.rawUrl));S.imgs=[];S.sel=null;render();$('previewWrap').classList.remove('active')});
+
+// ==================== FAQ Toggle ====================
+document.querySelectorAll('.faq-q').forEach(q=>{q.addEventListener('click',()=>{q.parentElement.classList.toggle('open')})});
+
+// ==================== Init ====================
+render();
+</script>
+</body>
+</html>
