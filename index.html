@@ -238,6 +238,10 @@ body {
   border-radius: var(--radius-sm); padding: 16px; margin-bottom: 12px;
 }
 .s-card h3 { font-size: 13px; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+.ref-upzone { border:2px dashed var(--bor2); border-radius:var(--radius-sm); padding:18px 12px; text-align:center; cursor:pointer; transition:all .2s; background:rgba(255,255,255,0.01); }
+.ref-upzone:hover, .ref-upzone.drag { border-color:var(--accent); background:rgba(108,92,231,0.05); }
+.ref-upzone.has-photo { border-style:solid; border-color:var(--accent2); background:rgba(0,255,135,0.03); }
+#refCard { border-color: rgba(108,92,231,0.3); }
 .s-row { margin-bottom: 12px; }
 .s-row:last-child { margin-bottom: 0; }
 .s-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -461,6 +465,26 @@ body {
             </div>
           </div>
 
+          <div class="s-card" id="refCard">
+            <h3>📸 Reference Photo (Real Camera)</h3>
+            <p style="font-size:11px;color:var(--text2);margin:0 0 8px">Upload a real photo taken by your phone — we'll copy its camera metadata to your AI images.</p>
+            <div class="ref-upzone" id="refUpZone">
+              <span id="refStatus" style="font-size:12px;color:var(--text2)">📷 Click or drop a real photo</span>
+              <input type="file" id="refInput" accept="image/jpeg,image/heic,image/heif,image/webp" style="display:none">
+            </div>
+            <div class="ref-preview" id="refPreview" style="display:none;margin-top:8px;padding:8px;background:var(--bg2);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.6">
+              <span id="refThumb" style="display:inline-block;width:48px;height:48px;border-radius:4px;background-size:cover;background-position:center;vertical-align:middle;margin-right:8px;"></span>
+              <span id="refInfo" style="vertical-align:middle"></span>
+              <button id="refClear" style="float:right;background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px" title="Remove">✕</button>
+            </div>
+            <div class="s-row" style="margin-top:8px">
+              <div class="toggle-r">
+                <span style="font-size:12px">Use Reference EXIF</span>
+                <label class="tgl"><input type="checkbox" id="useRefEXIF" disabled><span class="sl"></span></label>
+              </div>
+            </div>
+          </div>
+
           <div class="s-card">
             <h3>🎨 Real Photo Effects</h3>
             <div class="s-row">
@@ -628,6 +652,84 @@ const PRESETS = {
   huawei_pura70:{ Make:'HUAWEI', Model:'HBN-AL00', Software:'HarmonyOS 4.2' },
 };
 
+// ==================== Reference Photo ====================
+let refEXIF = null;
+let refFileName = '';
+let refThumbUrl = null;
+
+function resetRef() {
+  refEXIF = null;
+  refFileName = '';
+  if (refThumbUrl) URL.revokeObjectURL(refThumbUrl);
+  refThumbUrl = null;
+  $('refUpZone').classList.remove('has-photo');
+  $('refStatus').textContent = '📷 Click or drop a real photo';
+  $('refPreview').style.display = 'none';
+  $('refThumb').style.backgroundImage = '';
+  $('refInfo').textContent = '';
+  $('useRefEXIF').disabled = true;
+  $('useRefEXIF').checked = false;
+  $('refInput').value = '';
+}
+
+async function loadRefPhoto(file) {
+  const ab = await file.arrayBuffer();
+  let exifDump = null;
+  // Try to extract EXIF from the reference photo
+  if (typeof piexif !== 'undefined') {
+    try {
+      const bs = ab2bs(ab);
+      exifDump = piexif.load(bs);
+    } catch(e) {
+      console.warn('Failed to extract EXIF from reference photo:', e);
+      toast('No EXIF data found in this photo. Try a photo taken with your phone camera.', true);
+      return;
+    }
+  }
+  if (!exifDump || !exifDump['0th']) {
+    toast('No camera metadata found. Please use a real photo taken by your phone/camera.', true);
+    return;
+  }
+
+  // Extract readable info for display
+  const mk = (exifDump['0th'][piexif.ImageIFD.Make] || '').toString().replace(/\x00/g,'');
+  const md = (exifDump['0th'][piexif.ImageIFD.Model] || '').toString().replace(/\x00/g,'');
+  const dt = exifDump.Exif && exifDump.Exif[piexif.ExifIFD.DateTimeOriginal];
+  const hasGPS = exifDump.GPS && exifDump.GPS[piexif.GPSIFD.GPSLatitude];
+
+  refEXIF = exifDump;
+  refFileName = file.name;
+  if (refThumbUrl) URL.revokeObjectURL(refThumbUrl);
+  refThumbUrl = URL.createObjectURL(file);
+
+  $('refUpZone').classList.add('has-photo');
+  $('refStatus').textContent = '✅ Reference photo loaded';
+  $('refThumb').style.backgroundImage = `url(${refThumbUrl})`;
+  $('refInfo').innerHTML = `<strong>${mk || 'Unknown'} ${md || 'Unknown'}</strong><br>${dt ? '📅 '+dt : ''}${hasGPS ? ' 📍 GPS' : ''}`;
+  $('refPreview').style.display = 'block';
+  $('useRefEXIF').disabled = false;
+  $('useRefEXIF').checked = true;
+
+  toast(`✅ Loaded: ${mk} ${md}`);
+}
+
+// Reference upload zone events
+$('refUpZone').addEventListener('click', () => $('refInput').click());
+$('refUpZone').addEventListener('dragover', e => { e.preventDefault(); $('refUpZone').classList.add('drag'); });
+$('refUpZone').addEventListener('dragleave', () => $('refUpZone').classList.remove('drag'));
+$('refUpZone').addEventListener('drop', e => {
+  e.preventDefault();
+  $('refUpZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadRefPhoto(f);
+  else toast('Please drop an image file (JPG/HEIC/WebP)', true);
+});
+$('refInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) loadRefPhoto(f);
+});
+$('refClear').addEventListener('click', resetRef);
+
 // ==================== Toast ====================
 let toastT;
 function toast(msg, err) {
@@ -728,6 +830,11 @@ $('quality').addEventListener('input',function(){$('qualityVal').textContent=thi
 
 // ==================== EXIF ====================
 function getEXIF() {
+  // If reference photo EXIF is toggled on, use it as the base
+  if ($('useRefEXIF').checked && refEXIF) {
+    return { useRef: true };
+  }
+
   const p=$('phonePreset').value;let mk,md,sw;
   if(p==='custom'){mk=$('customMake').value||'Apple';md=$('customModel').value||'iPhone';sw=''}
   else if(PRESETS[p]){const x=PRESETS[p];mk=x.Make;md=x.Model;sw=x.Software}
@@ -749,6 +856,7 @@ async function process(imgObj) {
   imgObj.status='processing';render();
   const st={noise:parseFloat($('noiseLv').value),vignette:parseFloat($('vignLv').value),cp:$('colorProfile').value,quality:parseInt($('quality').value)/100,ar:$('autoResize').checked};
   const exif=getEXIF();
+  const useRef = exif.useRef && refEXIF;
   try{
     const bmp=await createImageBitmap(imgObj.file);let w=bmp.width,h=bmp.height;
     if(st.ar&&Math.max(w,h)>2048){const r=2048/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r)}
@@ -759,7 +867,12 @@ async function process(imgObj) {
     if(st.cp!=='none')colorFx(id,st.cp);
     cx.putImageData(id,0,0);
     let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',st.quality));
-    if(typeof piexif!=='undefined'){try{blob=await injEXIF(blob,exif,w,h)}catch(e){console.warn('EXIF injection failed:',e)}}
+    if(typeof piexif!=='undefined'){
+      try{
+        if(useRef) blob=await injRefEXIF(blob, refEXIF);
+        else blob=await injEXIF(blob, exif, w, h);
+      }catch(e){console.warn('EXIF injection failed:',e)}
+    }
     imgObj.blob=blob;imgObj.status='done';
     trackUsage();
   }catch(e){console.error(e);imgObj.status='raw';toast('Processing failed: '+e.message,true)}
@@ -779,6 +892,25 @@ async function injEXIF(blob,exif,w,h){
   const eb=piexif.dump({'0th':z,Exif:ef,GPS:gp});
   return new Blob([bs2ab(piexif.insert(eb,js))],{type:'image/jpeg'});
 }
+
+// injRefEXIF — completely copy reference photo's EXIF into the processed image
+async function injRefEXIF(blob, refExifObj) {
+  const ab = await blob.arrayBuffer();
+  const js = ab2bs(ab);
+  // Deep-clone the reference EXIF object to avoid mutation
+  const refDump = JSON.parse(JSON.stringify(refExifObj));
+  // Remove thumbnail data since the processed image has changed
+  delete refDump.thumbnail;
+  // Update dimensions in EXIF to match processed image
+  if (refDump.Exif) {
+    // Remove dimension-related tags that might not match the new image
+    delete refDump.Exif[piexif.ExifIFD.PixelXDimension];
+    delete refDump.Exif[piexif.ExifIFD.PixelYDimension];
+  }
+  const eb = piexif.dump(refDump);
+  return new Blob([bs2ab(piexif.insert(eb, js))], {type: 'image/jpeg'});
+}
+
 function ab2bs(buf){let b='';const a=new Uint8Array(buf);for(let i=0;i<a.length;i++)b+=String.fromCharCode(a[i]);return b}
 function bs2ab(b){const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
 
