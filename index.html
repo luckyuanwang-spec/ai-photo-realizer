@@ -521,6 +521,27 @@ body {
           </div>
 
           <div class="s-card">
+            <h3>🎯 AI Watermark Removal</h3>
+            <p style="font-size:11px;color:var(--text2);margin:0 0 8px">Auto-detect & crop visible AI watermarks (ChatGPT/DALL·E/Midjourney bars) burned into the image.</p>
+            <div class="s-row">
+              <div class="toggle-r">
+                <span style="font-size:12px">Auto-Crop Watermark Bar</span>
+                <label class="tgl"><input type="checkbox" id="cropWatermark" checked><span class="sl"></span></label>
+              </div>
+            </div>
+            <div class="s-row" id="cropManualRow" style="display:none">
+              <label>Manual Bottom Crop (%)</label>
+              <div class="range-r">
+                <input type="range" id="cropPct" min="1" max="20" value="8" step="0.5">
+                <span id="cropVal">8.0%</span>
+              </div>
+            </div>
+            <div class="s-row" id="cropFullAutoRow">
+              <span style="font-size:11px;color:var(--accent2)">✨ Auto-detects red/colored bars at image bottom</span>
+            </div>
+          </div>
+
+          <div class="s-card">
             <h3>🔧 Options</h3>
             <div class="s-row">
               <div class="toggle-r">
@@ -827,6 +848,74 @@ $('phonePreset').addEventListener('change',function(){
 $('noiseLv').addEventListener('input',function(){$('noiseVal').textContent=parseFloat(this.value).toFixed(1)});
 $('vignLv').addEventListener('input',function(){$('vignVal').textContent=parseFloat(this.value).toFixed(1)});
 $('quality').addEventListener('input',function(){$('qualityVal').textContent=this.value});
+$('cropWatermark').addEventListener('change',function(){
+  $('cropManualRow').style.display=this.checked?'none':'block';
+  $('cropFullAutoRow').style.display=this.checked?'block':'none';
+});
+$('cropPct').addEventListener('input',function(){$('cropVal').textContent=parseFloat(this.value).toFixed(1)+'%'});
+
+// ==================== Watermark Detection ====================
+function detectWatermarkBottom(canvas, ctx) {
+  const w = canvas.width, h = canvas.height;
+  const bottomScan = Math.floor(h * 0.18); // scan bottom 18%
+  const midY = Math.floor(h * 0.4);
+  const scanW = Math.floor(w * 0.5); // scan middle 50% width
+  const startX = Math.floor((w - scanW) / 2);
+
+  // Get reference color from middle of image
+  const midData = ctx.getImageData(startX, midY, scanW, 1).data;
+  let midR = 0, midG = 0, midB = 0;
+  for (let i = 0; i < midData.length; i += 4) {
+    midR += midData[i]; midG += midData[i+1]; midB += midData[i+2];
+  }
+  const cnt = scanW;
+  midR /= cnt; midG /= cnt; midB /= cnt;
+
+  // Scan from bottom up to find watermark boundary
+  let watermarkTop = h;
+  for (let y = h - 1; y >= h - bottomScan; y--) {
+    const rowData = ctx.getImageData(startX, y, scanW, 1).data;
+    let rowR = 0, rowG = 0, rowB = 0;
+    for (let i = 0; i < rowData.length; i += 4) {
+      rowR += rowData[i]; rowG += rowData[i+1]; rowB += rowData[i+2];
+    }
+    rowR /= cnt; rowG /= cnt; rowB /= cnt;
+
+    // Calculate color distance from reference
+    const dist = Math.abs(rowR - midR) + Math.abs(rowG - midG) + Math.abs(rowB - midB);
+
+    // If this row is significantly different from image content, it's likely watermark
+    if (dist > 80) {
+      // Refine: check if the next few rows are also different (sustained bar)
+      let sustained = true;
+      const checkRows = 3;
+      for (let dy = 1; dy <= checkRows; dy++) {
+        const checkY = y - dy;
+        if (checkY < h - bottomScan) break;
+        const cd = ctx.getImageData(startX, checkY, scanW, 1).data;
+        let cr = 0, cg = 0, cb = 0;
+        for (let i = 0; i < cd.length; i += 4) {
+          cr += cd[i]; cg += cd[i+1]; cb += cd[i+2];
+        }
+        cr /= cnt; cg /= cnt; cb /= cnt;
+        const cd2 = Math.abs(cr - midR) + Math.abs(cg - midG) + Math.abs(cb - midB);
+        if (cd2 < 65) { sustained = false; break; }
+      }
+      if (sustained) {
+        watermarkTop = y - 4; // start crop a few pixels above the boundary
+      }
+    }
+  }
+
+  // Calculate crop ratio
+  const croppedHeight = watermarkTop;
+  const originalHeight = h;
+
+  // Sanity check: don't crop more than 15% or less than 2%
+  if (croppedHeight < h * 0.85 || croppedHeight > h * 0.98) return null;
+
+  return { cropTo: croppedHeight, pct: ((1 - croppedHeight / h) * 100).toFixed(1) };
+}
 
 // ==================== EXIF ====================
 function getEXIF() {
@@ -857,20 +946,43 @@ async function process(imgObj) {
   const st={noise:parseFloat($('noiseLv').value),vignette:parseFloat($('vignLv').value),cp:$('colorProfile').value,quality:parseInt($('quality').value)/100,ar:$('autoResize').checked};
   const exif=getEXIF();
   const useRef = exif.useRef && refEXIF;
+  const cropWM = $('cropWatermark').checked;
+  const manualCropPct = parseFloat($('cropPct').value) / 100;
   try{
     const bmp=await createImageBitmap(imgObj.file);let w=bmp.width,h=bmp.height;
     if(st.ar&&Math.max(w,h)>2048){const r=2048/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r)}
-    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');cx.drawImage(bmp,0,0,w,h);
-    const id=cx.getImageData(0,0,w,h);
+    let c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');cx.drawImage(bmp,0,0,w,h);
+
+    // --- Watermark Crop ---
+    let cropY = 0; // 0 = no crop
+    if (cropWM) {
+      const wm = detectWatermarkBottom(c, cx);
+      if (wm && wm.cropTo < h) {
+        cropY = h - wm.cropTo;
+        toast('✂️ Auto-cropped watermarked bottom ('+wm.pct+'%)');
+      }
+    } else {
+      cropY = Math.floor(h * manualCropPct);
+    }
+    if (cropY > 0 && cropY < h * 0.18) {
+      const newH = h - cropY;
+      const c2 = document.createElement('canvas'); c2.width = w; c2.height = newH;
+      c2.getContext('2d').drawImage(c, 0, 0, w, newH, 0, 0, w, newH);
+      c = c2; h = newH;
+    }
+    // --- End Watermark Crop ---
+
+    const finalCx = c.getContext('2d');
+    const id = finalCx.getImageData(0, 0, c.width, c.height);
     if(st.noise>0)noiseFx(id,st.noise);
     if(st.vignette>0)vignFx(id,st.vignette);
     if(st.cp!=='none')colorFx(id,st.cp);
-    cx.putImageData(id,0,0);
+    finalCx.putImageData(id,0,0);
     let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',st.quality));
     if(typeof piexif!=='undefined'){
       try{
         if(useRef) blob=await injRefEXIF(blob, refEXIF);
-        else blob=await injEXIF(blob, exif, w, h);
+        else blob=await injEXIF(blob, exif, c.width, c.height);
       }catch(e){console.warn('EXIF injection failed:',e)}
     }
     imgObj.blob=blob;imgObj.status='done';
