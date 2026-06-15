@@ -325,6 +325,35 @@ body {
 .toast.ok { background: var(--green); color: #000; }
 .toast.err { background: var(--red); color: #fff; }
 @keyframes toastIn { from { opacity:0; transform:translateX(80px); } to { opacity:1; transform:translateX(0); } }
+
+/* ==================== Mobile ==================== */
+@media (max-width: 640px) {
+  .nav { padding: 10px 16px; }
+  .nav-logo { font-size: 16px; }
+  .hero { padding: 48px 16px 32px; }
+  .hero h1 { font-size: 26px; }
+  .hero p { font-size: 14px; }
+  .hero-badges { gap: 6px; }
+  .badge { font-size: 10px; padding: 4px 10px; }
+  .upload-area { padding: 28px 16px; margin: 12px; border-radius: var(--radius-sm); }
+  .upload-area .u-icon { font-size: 32px; }
+  .upload-area .u-title { font-size: 14px; }
+  .tool-grid { grid-template-columns: 1fr; padding: 0 12px 12px; }
+  .queue { padding: 0 12px 8px; gap: 6px; }
+  .q-item { width: 72px; height: 72px; }
+  .btn { padding: 12px 14px; font-size: 14px; min-height: 44px; }
+  .btn-p { font-size: 15px; }
+  .p-tabs button { padding: 8px 14px; font-size: 11px; }
+  .p-box { min-height: 180px; padding: 10px; }
+  .how h2, .faq-section h2 { font-size: 24px; }
+  .step { padding: 24px 16px; }
+  .step h3 { font-size: 16px; }
+  .stats-r { gap: 8px; font-size: 10px; flex-wrap: wrap; padding: 0 12px 6px; }
+  .s-card { padding: 12px; }
+  .s-card h3 { font-size: 11px; }
+  .s-row label { font-size: 10px; }
+  .s-row select, .s-row input[type="text"] { padding: 10px 8px; font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -367,6 +396,7 @@ body {
         <span>📊 Loaded: <strong id="total">0</strong></span>
         <span>✅ Processed: <strong id="done">0</strong></span>
         <span>⏳ Pending: <strong id="pending">0</strong></span>
+        <span>🔥 Total: <strong id="lifetime">0</strong></span>
       </div>
 
       <!-- Queue -->
@@ -395,11 +425,18 @@ body {
             <div class="s-row">
               <label>Preset Model</label>
               <select id="phonePreset">
-                <option value="iphone15pro">iPhone 15 Pro Max</option>
                 <option value="iphone16pro">iPhone 16 Pro</option>
+                <option value="iphone15pro">iPhone 15 Pro Max</option>
                 <option value="iphone14pro">iPhone 14 Pro</option>
+                <option value="iphone_se3">iPhone SE (3rd gen)</option>
+                <option value="pixel9pro">Google Pixel 9 Pro</option>
+                <option value="pixel9">Google Pixel 9</option>
+                <option value="oneplus13">OnePlus 13</option>
+                <option value="oneplus12">OnePlus 12</option>
+                <option value="samsung_s25">Samsung Galaxy S25 Ultra</option>
                 <option value="samsung_s24u">Samsung Galaxy S24 Ultra</option>
                 <option value="xiaomi14u">Xiaomi 14 Ultra</option>
+                <option value="nothing_p2">Nothing Phone (2)</option>
                 <option value="oppo_findx7">OPPO Find X7 Ultra</option>
                 <option value="vivo_x100p">vivo X100 Pro</option>
                 <option value="huawei_pura70">HUAWEI Pura 70 Ultra</option>
@@ -487,6 +524,15 @@ body {
             <button class="btn btn-g" id="downloadBtn" disabled style="flex:1">📥 Download All</button>
           </div>
           <button class="btn btn-s" id="clearBtn" style="width:100%;margin-top:6px;">🗑 Clear All</button>
+
+          <!-- Pro Teaser -->
+          <div class="s-card" style="margin-top:12px; border-color: var(--accent); background: linear-gradient(135deg, rgba(108,92,231,0.08), rgba(108,92,231,0.02));">
+            <h3 style="color:var(--accent2)">🚀 Pro Features Coming Soon</h3>
+            <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:8px;">
+              Unlock video metadata cleaning, batch watermark removal, priority processing & API access.
+            </p>
+            <p style="font-size:11px;color:var(--accent2);cursor:default;">✨ Free during beta — no signup needed</p>
+          </div>
         </div>
       </div>
     </div>
@@ -565,11 +611,18 @@ const $ = id => document.getElementById(id);
 
 // ==================== Phone Presets ====================
 const PRESETS = {
-  iphone15pro:  { Make:'Apple', Model:'iPhone 15 Pro Max', Software:'iOS 17.4' },
   iphone16pro:  { Make:'Apple', Model:'iPhone 16 Pro', Software:'iOS 18.2' },
+  iphone15pro:  { Make:'Apple', Model:'iPhone 15 Pro Max', Software:'iOS 17.4' },
   iphone14pro:  { Make:'Apple', Model:'iPhone 14 Pro', Software:'iOS 16.6' },
+  iphone_se3:   { Make:'Apple', Model:'iPhone SE (3rd gen)', Software:'iOS 17.4' },
+  pixel9pro:    { Make:'Google', Model:'Pixel 9 Pro', Software:'Android 15' },
+  pixel9:       { Make:'Google', Model:'Pixel 9', Software:'Android 15' },
+  oneplus13:    { Make:'OnePlus', Model:'OnePlus 13', Software:'OxygenOS 15' },
+  oneplus12:    { Make:'OnePlus', Model:'OnePlus 12', Software:'OxygenOS 14' },
   samsung_s24u: { Make:'Samsung', Model:'Galaxy S24 Ultra', Software:'SM-S9280' },
+  samsung_s25:  { Make:'Samsung', Model:'Galaxy S25 Ultra', Software:'SM-S9380' },
   xiaomi14u:    { Make:'Xiaomi', Model:'24030PN60G', Software:'HyperOS 1.0' },
+  nothing_p2:   { Make:'Nothing', Model:'Phone (2)', Software:'Nothing OS 2.5' },
   oppo_findx7:  { Make:'OPPO', Model:'PHY120', Software:'ColorOS 14' },
   vivo_x100p:   { Make:'vivo', Model:'V2324A', Software:'OriginOS 4' },
   huawei_pura70:{ Make:'HUAWEI', Model:'HBN-AL00', Software:'HarmonyOS 4.2' },
@@ -581,6 +634,13 @@ function toast(msg, err) {
   const el = $('toastEl');
   el.textContent = msg; el.className = 'toast ' + (err?'err':'ok'); el.style.display='block';
   clearTimeout(toastT); toastT = setTimeout(()=>el.style.display='none',2500);
+}
+
+// ==================== Usage Counter ====================
+function trackUsage() {
+  const total = (parseInt(localStorage.getItem('apr_lifetime')||'0')) + 1;
+  localStorage.setItem('apr_lifetime', total);
+  $('lifetime').textContent = total;
 }
 
 // ==================== Upload ====================
@@ -620,6 +680,8 @@ function renderStats() {
   if(!t){sr.classList.remove('active');return}
   sr.classList.add('active');
   $('total').textContent=t;$('done').textContent=d;$('pending').textContent=t-d;
+  const lt=parseInt(localStorage.getItem('apr_lifetime')||'0');
+  $('lifetime').textContent=lt;
 }
 function selImg(id){S.sel=id;render()}
 function rmImg(id){
@@ -699,6 +761,7 @@ async function process(imgObj) {
     let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',st.quality));
     if(typeof piexif!=='undefined'){try{blob=await injEXIF(blob,exif,w,h)}catch(e){console.warn('EXIF injection failed:',e)}}
     imgObj.blob=blob;imgObj.status='done';
+    trackUsage();
   }catch(e){console.error(e);imgObj.status='raw';toast('Processing failed: '+e.message,true)}
   render();
 }
